@@ -9,7 +9,7 @@ import dotenv from "dotenv"
 
 import unhandledRouter from "./routes/404"
 import testsRouter from "./routes/tests"
-import accountRouter from "./routes/account"
+import userRouter from "./routes/user"
 import testingRouter from "./routes/testing"
 
 // __dirname is not available in ES5/6
@@ -26,7 +26,9 @@ app.use(express.json())
 
 // route requests
 app.use("/tests", testsRouter)
-app.use("/account", accountRouter)
+app.use("/user", userRouter)
+
+// testing services
 app.use("/testing", testingRouter)
 
 // handle uncaught routes

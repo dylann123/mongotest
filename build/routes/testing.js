@@ -46,12 +46,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
  */
 var express_1 = __importDefault(require("express"));
 var database_1 = __importDefault(require("../util/database"));
+var path_1 = __importDefault(require("path"));
 var router = express_1.default.Router();
 var dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config({ path: __dirname + '/../../.env' });
 var DATABASE_NAME = process.env.DATABASE_QUERY;
-router.get('/', function (req, res, next) {
-    res.status(404).send({ error: "404 Not Found" });
+router.get('/dev', function (req, res, next) {
+    res.status(200).sendFile(path_1.default.resolve(__dirname + "/../../dev.html"));
 });
 router.get("/cleardatabase", function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
@@ -130,6 +131,7 @@ router.get("/getcollectionitems", function (req, res, next) {
                     return [4 /*yield*/, database_1.default.getMongoClient()];
                 case 1:
                     client = _a.sent();
+                    console.log("find " + collection);
                     return [4 /*yield*/, client.db(DATABASE_NAME).collection(collection).find().toArray()];
                 case 2:
                     array = _a.sent();

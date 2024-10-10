@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>/testing</title>
+    <style>
+        fieldset{
+            width: 30vw;
+        }
+    </style>
+</head>
+<body>
+    Admin Secret: <input type="checkbox" id="useadmin">
+    Override Secret: <input type="text" id="secret">
+    <fieldset>
+        <legend>/user</legend>
+        <div>
+            <input type="text" id="username" placeholder="username">
+            <br>
+            <input type="text" id="password" placeholder="password">
+            <br>
+            <textarea name="body" id="userbody"></textarea>
+            <br>
+            <button class="req-button" id="createaccount">POST /createaccount</button>
+            <button class="req-button" id="login">GET /login</button>
+        </div>
+    </fieldset>
+    <br>
+
+    <fieldset>
+        <legend>/tests (requires auth)</legend>
+        <div>
+            <input type="text" id="categorytoget" placeholder="query">
+            <br>
+            <button class="req-button" id="getcategories">GET /categories</button>
+            <button class="req-button" id="getcategory">GET /[category]</button>
+        </div>
+    </fieldset>
+    <br>
+
+    <fieldset>
+        <legend>/testing</legend>
+        <div>
+            <select name="a" id="testingquery">
+                <option value="userdata">userdata</option>
+                <option value="sessiondata">sessiondata</option>
+            </select>
+            <br>
+            <button class="req-button" id="clrdb">GET /cleardatabase</button>
+            <button class="req-button" id="clrcol">GET /clearcollection</button>
+            <button class="req-button" id="remcol">GET /removecollection</button>
+            <br>
+            <button class="req-button" id="getdb">GET /getdatabaseitems</button>
+            <button class="req-button" id="getcol">GET /getcollectionitems</button>
+        </div>
+    </fieldset>
+    <br>
+
+    <div id="output" style="width: 98vw; padding: 0px; height:70vh; border: 1px black solid; overflow-y: scroll; white-space: pre; font-family: monospace;"></div>
+    <script>
+        function request(rawurl, type, body = {secret: document.getElementById("secret").value || "none"}, options = {}) {
+            let url = rawurl
+            if(url.indexOf("?") == -1)
+                url+="?"
+            const args = {
+                method: type
+            }
+            if(document.getElementById("useadmin").checked == true){
+                url+="&secretadminkeywow=1F_TH3Y-F1ND_TH12_W3-4RE_C00KED!_If3s45diFHsdgrgf45ifgifuSDOJFOIDOID3FSOIJuDFGOJiqoen222fjfO4KCcoijn345fIOJFFDUSgfd"
+                body["secretadminkeywow"] = "1F_TH3Y-F1ND_TH12_W3-4RE_C00KED!_If3s45diFHsdgrgf45ifgifuSDOJFOIDOID3FSOIJuDFGOJiqoen222fjfO4KCcoijn345fIOJFFDUSgfd"
+            }
+
+            for(let i in options){
+                args[i] = options[i]
+            }
+            if(type != "GET" && type != "HEAD"){
+                args["body"] = JSON.stringify(body)
+            }else{
+                url+="&secret="+body["secret"]
+            }
+            
+            log(type+" "+url)
+
+            let JSON_START = /^\[|^\{(?!\{)/;
+            let JSON_ENDS = {
+              '[': /]$/,
+              '{': /}$/
+            };
+            
+            function isJsonLike(str) {
+                let jsonStart = str.match(JSON_START);
+                return jsonStart && JSON_ENDS[jsonStart[0]].test(str);
+            }
+
+            fetch(url, args).catch(err => alert(err))
+            .then(raw => raw.text())
+            .catch(err => alert(err))
+            .then(ret => {
+                if(isJsonLike(ret))
+                    log(JSON.stringify(JSON.parse(ret), null, 4))
+                else
+                    log(ret)
+            })
+        }
+        function log(text){
+            const box = document.getElementById("output")
+            const div = document.createElement("div")
+            div.innerText = text
+            box.appendChild(div)
+            const line = document.createElement("div")
+            div.style.borderTop = "0.5px black solid"
+            div.style.borderBottom = "0.5px black solid"
+            div.style.width = "100%"
+            box.appendChild(line)
+            box.scrollTo(0,99999999)
+        }
+
+        document.getElementById("clrdb").addEventListener("click", () => {
+            const url = "/testing/cleardatabase"
+            request(url, "GET")
+        })
+        document.getElementById("clrcol").addEventListener("click", () => {
+            const url = "/testing/clearcollection"
+            const query = document.getElementById("testingquery").value
+            request(url+"?collection="+query, "GET")
+        })
+        document.getElementById("remcol").addEventListener("click", () => {
+            const url = "/testing/removecollection"
+            const query = document.getElementById("testingquery").value
+            request(url+"?collection="+query, "GET")
+        })
+        document.getElementById("getdb").addEventListener("click", () => {
+            const url = "/testing/getdatabaseitems"
+            request(url, "GET")
+        })
+        document.getElementById("getcol").addEventListener("click", () => {
+            const url = "/testing/getcollectionitems"
+            const query = document.getElementById("testingquery").value
+            request(url+"?collection="+query, "GET")
+        })
+        document.getElementById("createaccount").addEventListener("click", () => {
+            const url = "/user/createaccount"
+            const username = document.getElementById("username").value
+            const password = document.getElementById("password").value
+            const userbody = document.getElementById("userbody").value
+            try{
+                const body = {
+                    username: username,
+                    password: password,
+                    userdata: JSON.parse(userbody)
+                }
+    
+                request(url, "POST", body, {"headers":{"Content-Type": "application/json"}})
+            }catch(err){
+                alert("invalid body",err)
+            }
+            
+        })
+        document.getElementById("login").addEventListener("click", () => {
+            const url = "/user/login"
+            const username = document.getElementById("username").value
+            const password = document.getElementById("password").value
+            const query = `?username=${username}&password=${password}`
+
+            request(url + query, "GET")
+        })
+        document.getElementById("getcategories").addEventListener("click", () => {
+            const url = "/tests/categories"
+            request(url, "GET")
+        })
+        document.getElementById("getcategory").addEventListener("click", () => {
+            const url = "/tests/"
+            const cat = document.getElementById("categorytoget").value
+            const query = `${cat}`
+
+            request(url + query, "GET")
+        })
+    </script>
+</body>
+</html>

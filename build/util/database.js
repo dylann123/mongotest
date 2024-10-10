@@ -122,6 +122,34 @@ var Database = /** @class */ (function () {
         });
     };
     /**
+     * Modifies a selected item using the keys from another object
+     * @param collection string; collection to modify
+     * @param query object; object query to replace
+     * @param replacement object; replaces every item from the queried object with every item in replacement
+     * @returns object; new object
+     */
+    Database.modifyItemInCollection = function (collection, query, replacement) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        return __awaiter(this, void 0, void 0, function () {
+                            var newRow, i;
+                            return __generator(this, function (_a) {
+                                newRow = Database.queryItemsInCollection(collection, query);
+                                for (i in replacement) {
+                                    newRow[i] = replacement[i];
+                                }
+                                Database.removeItemFromCollection(collection, query);
+                                Database.writeToCollection(collection, newRow);
+                                resolve(newRow);
+                                return [2 /*return*/];
+                            });
+                        });
+                    })];
+            });
+        });
+    };
+    /**
      * Returns an array of every item in a collection
      * @param collection the collection to read
      * @returns array of collection items
@@ -191,10 +219,73 @@ var Database = /** @class */ (function () {
             });
         });
     };
+    Database.removeItemFromCollection = function (collection, query) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        return __awaiter(this, void 0, void 0, function () {
+                            var dbClient, db;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, client];
+                                    case 1:
+                                        dbClient = _a.sent();
+                                        db = dbClient.db(DATABASE_NAME);
+                                        if (!Database.collectionExistsInDb(db, collection))
+                                            db.createCollection(collection);
+                                        return [4 /*yield*/, Database.queryItemsInCollection(collection, query)];
+                                    case 2:
+                                        if (!((_a.sent())["length"] != 1)) return [3 /*break*/, 3];
+                                        resolve(false);
+                                        return [3 /*break*/, 5];
+                                    case 3: return [4 /*yield*/, db.collection(collection).deleteOne(query)
+                                            .catch(function (err) { reject(err); })];
+                                    case 4:
+                                        _a.sent();
+                                        resolve(true);
+                                        _a.label = 5;
+                                    case 5: return [2 /*return*/];
+                                }
+                            });
+                        });
+                    })];
+            });
+        });
+    };
+    Database.removeItemsFromCollection = function (collection, query) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        return __awaiter(this, void 0, void 0, function () {
+                            var dbClient, db;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, client];
+                                    case 1:
+                                        dbClient = _a.sent();
+                                        db = dbClient.db(DATABASE_NAME);
+                                        if (!this.collectionExistsInDb(db, collection))
+                                            db.createCollection(collection);
+                                        return [4 /*yield*/, db.collection(collection).deleteMany(query)
+                                                .catch(function (err) { reject(err); })];
+                                    case 2:
+                                        _a.sent();
+                                        resolve(true);
+                                        return [2 /*return*/];
+                                }
+                            });
+                        });
+                    })];
+            });
+        });
+    };
     /** only for testing use */
     Database.getMongoClient = function () {
         return client;
     };
+    Database.SESSION_COLLECTION_NAME = "sessiondata";
+    Database.USER_COLLECTION_NAME = "logindata";
+    Database.USERDATA_COLLECTION_NAME = "userdata";
     return Database;
 }());
 exports.default = Database;

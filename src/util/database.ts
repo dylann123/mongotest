@@ -11,6 +11,11 @@ const DATABASE_NAME = process.env.DATABASE_QUERY
 const client = new MongoClient(process.env.DATABASE_URL).connect()
 
 class Database {
+
+    public static SESSION_COLLECTION_NAME = "sessiondata"
+    public static USER_COLLECTION_NAME = "logindata"
+    public static USERDATA_COLLECTION_NAME = "userdata"
+
     /**
      * Writes to a collection
      * @param collection collection to write to
@@ -31,7 +36,7 @@ class Database {
             resolve(true)
         })
     }
- 
+
     /**
      * Returns an array of every collection item that matches query
      * @param collection string
@@ -39,17 +44,39 @@ class Database {
      * @returns Array<object>
      */
     public static async queryItemsInCollection(collection: string, query: object): Promise<object> {
-        return new Promise(async function (resolve, reject){
+        return new Promise(async function (resolve, reject) {
             const dbClient = await client
             const db: Db = dbClient.db(DATABASE_NAME)
             const data = await db.collection(collection).find(query).toArray()
-            
+
             // convert to JS object
             const object = []
-            for(let i of data)
+            for (let i of data)
                 object.push(i)
-            
+
             resolve(object)
+        })
+    }
+
+    /**
+     * Modifies a selected item using the keys from another object
+     * @param collection string; collection to modify
+     * @param query object; object query to replace
+     * @param replacement object; replaces every item from the queried object with every item in replacement
+     * @returns object; new object
+     */
+    public static async modifyItemInCollection(collection: string, query: object, replacement: object): Promise<object> {
+        return new Promise(async function (resolve, reject) {
+            const newRow = Database.queryItemsInCollection(collection, query)
+
+            for(let i in replacement){
+                newRow[i] = replacement[i]
+            }
+
+            Database.removeItemFromCollection(collection, query)
+            Database.writeToCollection(collection, newRow)
+
+            resolve(newRow)
         })
     }
 
@@ -59,7 +86,7 @@ class Database {
      * @returns array of collection items
      */
     public static getCollection(collection: string) {
-        return new Promise(async function (resolve, reject){
+        return new Promise(async function (resolve, reject) {
             const dbClient: MongoClient = await client
             const db: Db = dbClient.db(DATABASE_NAME)
             const data = await db.collection(collection).find().toArray()
@@ -73,7 +100,7 @@ class Database {
      * @returns array of every collection
      */
     public static getDatabase() {
-        return new Promise(async function(resolve, reject){
+        return new Promise(async function (resolve, reject) {
             const dbClient: MongoClient = await client
             const db: Db = dbClient.db(DATABASE_NAME)
             const data = await db.listCollections().toArray()
@@ -93,8 +120,42 @@ class Database {
         return (collection) ? true : false
     }
 
+    public static async removeItemFromCollection(collection: string, query: object): Promise<boolean> {
+        return new Promise(async function (resolve, reject) {
+            const dbClient: MongoClient = await client
+            const db: Db = dbClient.db(DATABASE_NAME)
+
+            if (!Database.collectionExistsInDb(db, collection))
+                db.createCollection(collection)
+
+            if ((await Database.queryItemsInCollection(collection, query))["length"] != 1)
+                resolve(false)
+            else {
+                await db.collection(collection).deleteOne(query)
+                    .catch(function (err) { reject(err) })
+
+                resolve(true)
+            }
+        })
+    }
+
+    public static async removeItemsFromCollection(collection: string, query: object): Promise<boolean> {
+        return new Promise(async function (resolve, reject) {
+            const dbClient: MongoClient = await client
+            const db: Db = dbClient.db(DATABASE_NAME)
+
+            if (!this.collectionExistsInDb(db, collection))
+                db.createCollection(collection)
+
+            await db.collection(collection).deleteMany(query)
+                .catch(function (err) { reject(err) })
+
+            resolve(true)
+        })
+    }
+
     /** only for testing use */
-    public static getMongoClient(){
+    public static getMongoClient() {
         return client
     }
 }

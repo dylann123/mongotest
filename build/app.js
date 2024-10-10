@@ -12,7 +12,7 @@ var express_1 = __importDefault(require("express"));
 var dotenv_1 = __importDefault(require("dotenv"));
 var _404_1 = __importDefault(require("./routes/404"));
 var tests_1 = __importDefault(require("./routes/tests"));
-var account_1 = __importDefault(require("./routes/account"));
+var user_1 = __importDefault(require("./routes/user"));
 var testing_1 = __importDefault(require("./routes/testing"));
 // __dirname is not available in ES5/6
 var path_1 = __importDefault(require("path"));
@@ -24,7 +24,8 @@ var app = (0, express_1.default)();
 app.use(express_1.default.json());
 // route requests
 app.use("/tests", tests_1.default);
-app.use("/account", account_1.default);
+app.use("/user", user_1.default);
+// testing services
 app.use("/testing", testing_1.default);
 // handle uncaught routes
 app.use(_404_1.default);

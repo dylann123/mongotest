@@ -6,14 +6,16 @@
 import express from "express"
 import Database from "../util/database";
 import { MongoClient } from "mongodb";
+import path from "path"
+
 const router = express.Router();
 
 import dotenv from "dotenv"
 dotenv.config({ path: __dirname + '/../../.env' })
 const DATABASE_NAME = process.env.DATABASE_QUERY
 
-router.get('/', function(req, res, next) {
-	res.status(404).send({ error: "404 Not Found"});
+router.get('/dev', function(req, res, next) {
+	res.status(200).sendFile(path.resolve(__dirname + "/../../dev.html"))
 });
 
 router.get("/cleardatabase", async function(req,res,next){
@@ -46,6 +48,7 @@ router.get("/getdatabaseitems", async function(req,res,next){
 router.get("/getcollectionitems", async function(req,res,next){
     const collection = (req.query.collection as string)
     const client: MongoClient = await Database.getMongoClient()
+    console.log("find "+collection)
     const array = await client.db(DATABASE_NAME).collection(collection).find().toArray()
     res.status(200).send(array)
 })

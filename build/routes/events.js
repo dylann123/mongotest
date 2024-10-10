@@ -78,15 +78,16 @@ router.get('/:event', function (req, res, next) {
                     users = (_a.sent());
                     user = users[0];
                     console.log(user);
-                    if (user["type"].includes("states")) {
+                    if (!user["states"]) {
+                        res.status(200).send({ code: 200, result: { "regionals": categories_1.default.DRIVE_LINKS["regionals"][event] } });
+                    }
+                    else {
                         body = {
                             "regionals": categories_1.default.DRIVE_LINKS["regionals"][event],
                             "states": categories_1.default.DRIVE_LINKS["states"][event]
                         };
                         res.status(200).send({ code: 200, result: body });
                     }
-                    else
-                        res.status(200).send({ code: 200, result: { "regionals": categories_1.default.DRIVE_LINKS["regionals"][event] } });
                     return [2 /*return*/];
             }
         });
