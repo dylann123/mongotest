@@ -1,6 +1,6 @@
 /**
  * @author Dylan Nguyen (@dylann123)
- * Last Updated: 6 September 2024
+ * Last Updated: 5 December 2024
  * Handles unhandled endpoint requests at /*
  */
 import express from "express"

@@ -1,20 +1,35 @@
 /**
  * @author Dylan Nguyen (@dylann123)
- * Last Updated: 13 September 2024
+ * Last Updated: 21 September 2024
  * mongodb utility
  */
 
-import { Db, MongoClient, WithId } from "mongodb"
+import { Db, MongoClient, ObjectId, WithId } from "mongodb"
 import dotenv from "dotenv"
 dotenv.config({ path: __dirname + '/../../.env' })
 const DATABASE_NAME = process.env.DATABASE_QUERY
 const client = new MongoClient(process.env.DATABASE_URL).connect()
 
 class Database {
+	static deleteItemInCollection(collection: string, query: { event: any; season: any; userid: any; competition: any }) {
+		throw new Error("Method not implemented.")
+	}
 
-    public static SESSION_COLLECTION_NAME = "sessiondata"
-    public static USER_COLLECTION_NAME = "logindata"
-    public static USERDATA_COLLECTION_NAME = "userdata"
+
+    public static STATES = "states"
+    public static REGIONALS = "regionals"
+
+    public static SESSION_COLLECTION_NAME = "sessiondata" // session data: { user, secret, expires }
+    public static USER_COLLECTION_NAME = "logindata" // user, password { user, password }
+    public static USERDATA_COLLECTION_NAME = "userdata" // profile data { user, type, events, firstname, lastname, admin }
+    public static TOURNAMENT_COLLECTION_NAME = "tournamentdata" // tournament data { name, date, location, schedule, links, training } 
+    public static RANKINGS_COLLECTION_NAME = "rankingsdata" // rankings data { type: "individual"/"team", event, data, id: 1/2/3/userid }
+    public static EVENTS_COLLECTION_NAME = "eventstorage" // drive data { name, link, type }
+    public static PHOTOS_COLLECTION_NAME = "photostorage" // drive data { name, photolink }
+
+    public static generateID(): string {
+        return crypto.randomUUID().toString()
+    }
 
     /**
      * Writes to a collection
@@ -43,10 +58,14 @@ class Database {
      * @param query object
      * @returns Array<object>
      */
-    public static async queryItemsInCollection(collection: string, query: object): Promise<object> {
+    public static async queryItemsInCollection(collection: string, query: object = {}): Promise<any[]> {
         return new Promise(async function (resolve, reject) {
             const dbClient = await client
             const db: Db = dbClient.db(DATABASE_NAME)
+
+            if (query["_id"] && typeof query["_id"] == "string") 
+                query["_id"] = ObjectId.createFromHexString(query["_id"])
+            
             const data = await db.collection(collection).find(query).toArray()
 
             // convert to JS object
@@ -67,16 +86,30 @@ class Database {
      */
     public static async modifyItemInCollection(collection: string, query: object, replacement: object): Promise<object> {
         return new Promise(async function (resolve, reject) {
-            const newRow = Database.queryItemsInCollection(collection, query)
+            const queries = await Database.queryItemsInCollection(collection, query)
+
+            if (queries["length"] > 1){
+                reject("modifyItemInCollection: query returned multiple rows")
+                return
+            }
+            if (queries["length"] == 0){
+                console.log(query)
+                reject("modifyItemInCollection: query returned no rows")
+                return
+            }
+
+            const newRow = queries[0]
 
             for(let i in replacement){
+                if (i == "_id") continue
                 newRow[i] = replacement[i]
             }
+            console.log(newRow)
 
             Database.removeItemFromCollection(collection, query)
             Database.writeToCollection(collection, newRow)
 
-            resolve(newRow)
+            resolve(queries)
         })
     }
 
@@ -85,12 +118,12 @@ class Database {
      * @param collection the collection to read
      * @returns array of collection items
      */
-    public static getCollection(collection: string) {
+    public static getCollection(collection: string): Promise<Array<any>> {
         return new Promise(async function (resolve, reject) {
             const dbClient: MongoClient = await client
             const db: Db = dbClient.db(DATABASE_NAME)
             const data = await db.collection(collection).find().toArray()
-                .catch(function (err) { reject(err) })
+
             resolve(data)
         })
     }
@@ -99,12 +132,11 @@ class Database {
      * Returns every collection in the database
      * @returns array of every collection
      */
-    public static getDatabase() {
+    public static getDatabase(): Promise<object> {
         return new Promise(async function (resolve, reject) {
             const dbClient: MongoClient = await client
             const db: Db = dbClient.db(DATABASE_NAME)
             const data = await db.listCollections().toArray()
-                .catch(function (err) { reject(err) })
             resolve(data)
         })
     }

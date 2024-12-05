@@ -1,3 +1,3 @@
-npx tsc
+screen -d -m npx tsc
 screen -d -m npm run mongo
-screen -d -m npm run start
+npm run start

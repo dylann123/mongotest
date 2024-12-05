@@ -30,7 +30,7 @@ router.get("/removecollection", async function(req,res,next){
     client.db(DATABASE_NAME).collection(collection).drop()
     res.status(200).send({success: true})
 })
-
+ 
 router.get("/clearcollection", async function(req,res,next){
     const collection = (req.query.collection as string)
     const client: MongoClient = await Database.getMongoClient()

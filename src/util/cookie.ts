@@ -32,17 +32,18 @@ async function parseCookiesRejectSession(req: Request, res: Response, next: Next
         }
 
         res.locals.validated = false
+        res.locals.administrator = false
 
-        const sessionExistsCookie = (await SessionManager.verifyUserSession({secret: cookies[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false }))
-        const sessionExistsBody = (await SessionManager.verifyUserSession({secret: req.body[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false }))
-        const sessionExistsQuery = (await SessionManager.verifyUserSession({secret: req.query[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) // unsafe
+        const sessionExistsCookie = (cookies[SessionManager.COOKIE_NAME]) ? (await SessionManager.verifyUserSession({secret: cookies[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) : {verified: false, result: {}}
+        const sessionExistsBody = (req.body[SessionManager.COOKIE_NAME]) ? (await SessionManager.verifyUserSession({secret: req.body[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) : {verified: false, result: {}}
+        const sessionExistsQuery = (req.query[SessionManager.COOKIE_NAME]) ? (await SessionManager.verifyUserSession({secret: req.query[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) : {verified: false, result: {}} // unsafe
         if (cookies[SessionManager.COOKIE_NAME] && (sessionExistsCookie["verified"] || sessionExistsBody["verified"] || sessionExistsQuery["verified"])){
             res.locals.validated = true
             res.locals.username = sessionExistsCookie["result"]["username"] || sessionExistsBody["result"]["username"] || sessionExistsQuery["result"]["username"]
             const userdata = await Database.queryItemsInCollection(Database.USERDATA_COLLECTION_NAME, {username: res.locals.username})
             res.locals.userdata = userdata[0] // it is assumed that there is only one user with a given username, and that it actually exists
+            res.locals.administrator = (res.locals.userdata.type == "officer" || res.locals.userdata.admin)
         }
-        console.log("validated: "+res.locals.validated)
         res.locals.cookie = cookies;
     }
     else
@@ -52,6 +53,7 @@ async function parseCookiesRejectSession(req: Request, res: Response, next: Next
 
 function sendUnauthorized(res: Response){
     res.status(403).send({ code: 403, result: "Unauthorized request."})
+    return true
 }
 
 export default { parseCookies, parseCookiesRejectSession, sendUnauthorized }

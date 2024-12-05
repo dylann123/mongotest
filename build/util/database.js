@@ -1,7 +1,7 @@
 "use strict";
 /**
  * @author Dylan Nguyen (@dylann123)
- * Last Updated: 13 September 2024
+ * Last Updated: 21 September 2024
  * mongodb utility
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -52,6 +52,9 @@ var client = new mongodb_1.MongoClient(process.env.DATABASE_URL).connect();
 var Database = /** @class */ (function () {
     function Database() {
     }
+    Database.generateID = function () {
+        return crypto.randomUUID().toString();
+    };
     /**
      * Writes to a collection
      * @param collection collection to write to
@@ -90,8 +93,9 @@ var Database = /** @class */ (function () {
      * @param query object
      * @returns Array<object>
      */
-    Database.queryItemsInCollection = function (collection, query) {
-        return __awaiter(this, void 0, void 0, function () {
+    Database.queryItemsInCollection = function (collection_1) {
+        return __awaiter(this, arguments, void 0, function (collection, query) {
+            if (query === void 0) { query = {}; }
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         return __awaiter(this, void 0, void 0, function () {
@@ -102,6 +106,8 @@ var Database = /** @class */ (function () {
                                     case 1:
                                         dbClient = _a.sent();
                                         db = dbClient.db(DATABASE_NAME);
+                                        if (query["_id"] && typeof query["_id"] == "string")
+                                            query["_id"] = mongodb_1.ObjectId.createFromHexString(query["_id"]);
                                         return [4 /*yield*/, db.collection(collection).find(query).toArray()
                                             // convert to JS object
                                         ];
@@ -133,16 +139,33 @@ var Database = /** @class */ (function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         return __awaiter(this, void 0, void 0, function () {
-                            var newRow, i;
+                            var queries, newRow, i;
                             return __generator(this, function (_a) {
-                                newRow = Database.queryItemsInCollection(collection, query);
-                                for (i in replacement) {
-                                    newRow[i] = replacement[i];
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, Database.queryItemsInCollection(collection, query)];
+                                    case 1:
+                                        queries = _a.sent();
+                                        if (queries["length"] > 1) {
+                                            reject("modifyItemInCollection: query returned multiple rows");
+                                            return [2 /*return*/];
+                                        }
+                                        if (queries["length"] == 0) {
+                                            console.log(query);
+                                            reject("modifyItemInCollection: query returned no rows");
+                                            return [2 /*return*/];
+                                        }
+                                        newRow = queries[0];
+                                        for (i in replacement) {
+                                            if (i == "_id")
+                                                continue;
+                                            newRow[i] = replacement[i];
+                                        }
+                                        console.log(newRow);
+                                        Database.removeItemFromCollection(collection, query);
+                                        Database.writeToCollection(collection, newRow);
+                                        resolve(queries);
+                                        return [2 /*return*/];
                                 }
-                                Database.removeItemFromCollection(collection, query);
-                                Database.writeToCollection(collection, newRow);
-                                resolve(newRow);
-                                return [2 /*return*/];
                             });
                         });
                     })];
@@ -164,8 +187,7 @@ var Database = /** @class */ (function () {
                         case 1:
                             dbClient = _a.sent();
                             db = dbClient.db(DATABASE_NAME);
-                            return [4 /*yield*/, db.collection(collection).find().toArray()
-                                    .catch(function (err) { reject(err); })];
+                            return [4 /*yield*/, db.collection(collection).find().toArray()];
                         case 2:
                             data = _a.sent();
                             resolve(data);
@@ -189,8 +211,7 @@ var Database = /** @class */ (function () {
                         case 1:
                             dbClient = _a.sent();
                             db = dbClient.db(DATABASE_NAME);
-                            return [4 /*yield*/, db.listCollections().toArray()
-                                    .catch(function (err) { reject(err); })];
+                            return [4 /*yield*/, db.listCollections().toArray()];
                         case 2:
                             data = _a.sent();
                             resolve(data);
@@ -283,9 +304,15 @@ var Database = /** @class */ (function () {
     Database.getMongoClient = function () {
         return client;
     };
-    Database.SESSION_COLLECTION_NAME = "sessiondata";
-    Database.USER_COLLECTION_NAME = "logindata";
-    Database.USERDATA_COLLECTION_NAME = "userdata";
+    Database.STATES = "states";
+    Database.REGIONALS = "regionals";
+    Database.SESSION_COLLECTION_NAME = "sessiondata"; // session data: { user, secret, expires }
+    Database.USER_COLLECTION_NAME = "logindata"; // user, password { user, password }
+    Database.USERDATA_COLLECTION_NAME = "userdata"; // profile data { user, type, events, firstname, lastname, admin }
+    Database.TOURNAMENT_COLLECTION_NAME = "tournamentdata"; // tournament data { name, date, location, schedule, links, training } 
+    Database.RANKINGS_COLLECTION_NAME = "rankingsdata"; // rankings data { type: "individual"/"team", event, data, id: 1/2/3/userid }
+    Database.EVENTS_COLLECTION_NAME = "eventstorage"; // drive data { name, link, type }
+    Database.PHOTOS_COLLECTION_NAME = "photostorage"; // drive data { name, photolink }
     return Database;
 }());
 exports.default = Database;

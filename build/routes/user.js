@@ -47,6 +47,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var express_1 = __importDefault(require("express"));
 var bcrypt_1 = __importDefault(require("bcrypt"));
+var events_1 = __importDefault(require("../util/events"));
 var session_1 = __importDefault(require("../util/session"));
 var cookie_1 = __importDefault(require("../util/cookie"));
 var dotenv_1 = __importDefault(require("dotenv"));
@@ -62,13 +63,39 @@ router.get('/', function (req, res, next) {
     res.status(404).send({ code: "404", error: "unknown path" });
 });
 /**
- * GET /user/login
- * @param username: string
- * @param password: string
- * @returns {
- * 	"code": "errorcode",
- * 	"result" "authcode"
- * }
+ * @apiDefine User User endpoints
+ * User endpoints are used for account management and authentication.
+ *
+ * Authentication is required for most user endpoints.
+ *
+ * Authentication is done through a session secret, which is given to the user upon login and is stored as a cookie by default.
+ *
+ * The secret can be provided to the server in three ways:
+ *
+ * 1. As a cookie
+ * 2. As a body parameter
+ * 3. As a query parameter	(unsafe)
+ *
+ * If any of these are given to the server, the server will validate the session secret and allow access to the endpoint.
+ *
+ * If the session secret is not provided, the server will return a 401 Unauthorized error.
+ *
+ */
+/**
+ * @api {get} /user/login Login
+ * @apidescription Logs in a user
+ * @apiName Login
+ * @apiGroup User
+ *
+ * @apiParam {String} username Username
+ * @apiParam {String} password Password
+ *
+ * @apiSuccess result secret for session authentication. Is also set as a cookie.
+ *
+ * @apiError MissingArgument 400 Must supply username and password
+ * @apiError InvalidArgument 400 Password must be a string
+ * @apiError Unauthorized 401 Username or password is incorrect
+ * @apiError UsernameNotFound 500 Internal server error
  */
 router.get('/login', function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
@@ -109,7 +136,7 @@ router.get('/login', function (req, res, next) {
                     res.status(200).send({ code: 200, result: secret });
                     return [3 /*break*/, 5];
                 case 4:
-                    res.status(401).send({ code: 403, result: "Username or password is incorrect" });
+                    res.status(401).send({ code: 401, result: "Username or password is incorrect" });
                     _a.label = 5;
                 case 5: return [3 /*break*/, 7];
                 case 6:
@@ -121,20 +148,29 @@ router.get('/login', function (req, res, next) {
     });
 });
 /**
- * POST /user/createaccount
- * On success, stores username and password, hashed with bcrypt
- * @param body.username username
- * @param body.password password; please hash
- * @param body.type type; Valid types: regional, state, officer
+ * @api {post} /user/createaccount Create an Account
+ * @apidescription Creates an account. Requires admin privileges (admin or officer).
+ * @apiName CreateAccount
+ * @apiGroup User
+ *
+ * @apiParam {String} username Username
+ * @apiParam {String} password Password
+ * @apiParam {Object} userdata User data. Must contain: { type: "regional","state","officer", events: Array }. Can Contain: { firstname: String, lastname: String, admin: Boolean }
+ *
+ * @apiSuccess result Account created successfully
+ *
+ * @apiError MissingArgument 401 Must supply username, password, and userdata
+ * @apiError InvalidArgument 401 Must supply type/Must supply at least one event
+ * @apiError UsernameTaken 409 Username already taken
+ *
  */
 router.post('/createaccount', function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var invalidUser, body, username, password, userdata, existingAccounts;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var invalidUser, body, username, password, userdata, invalid_events, _i, _a, event_1, existingAccounts, uid;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
                 case 0:
-                    invalidUser = !res.locals.validated || res.locals.userdata.type == undefined ||
-                        (res.locals.userdata.type != "officer" && !res.locals.userdata.admin);
+                    invalidUser = !res.locals.administrator;
                     if (invalidUser && req.body.secretadminkeywow != process.env.ADMIN_SECRET) {
                         res.status(501).send({ success: false, result: "and who do you think you are? (invalidated request)" });
                         return [2 /*return*/];
@@ -147,12 +183,32 @@ router.post('/createaccount', function (req, res, next) {
                         res.status(400).send({ success: false, result: "Must supply username and password; got user " + username + " and password " + password });
                         return [2 /*return*/];
                     }
+                    if (userdata == undefined) {
+                        res.status(401).send({ success: false, result: "Must supply userdata" });
+                        return [2 /*return*/];
+                    }
                     if (userdata["type"] == undefined) {
-                        res.status(400).send({ success: false, result: "Must supply type" });
+                        res.status(401).send({ success: false, result: "Must supply userdata.type" });
+                        return [2 /*return*/];
+                    }
+                    if (userdata["type"] != account_1.default.USERTYPE.REGIONAL && userdata["type"] != account_1.default.USERTYPE.STATE && userdata["type"] != account_1.default.USERTYPE.OFFICER) {
+                        res.status(401).send({ success: false, result: "Invalid userdata.type; must be 'regional', 'state', or 'officer'" });
                         return [2 /*return*/];
                     }
                     if (userdata["events"] == undefined) {
-                        res.status(400).send({ success: false, result: "Must supply at least one event" });
+                        res.status(401).send({ success: false, result: "Must supply at least one event (userdata.events)" });
+                        return [2 /*return*/];
+                    }
+                    invalid_events = [];
+                    for (_i = 0, _a = userdata["events"]; _i < _a.length; _i++) {
+                        event_1 = _a[_i];
+                        if (!events_1.default.EVENT_NAMES[event_1]) {
+                            invalid_events.push(event_1);
+                            return [2 /*return*/];
+                        }
+                    }
+                    if (invalid_events.length > 0) {
+                        res.status(401).send({ success: false, result: "Invalid events: " + invalid_events.join(", ") });
                         return [2 /*return*/];
                     }
                     if (typeof password == "string")
@@ -163,14 +219,14 @@ router.post('/createaccount', function (req, res, next) {
                     }
                     return [4 /*yield*/, account_1.default.getUserAccount(username)];
                 case 1:
-                    existingAccounts = _a.sent();
+                    existingAccounts = _b.sent();
                     if (existingAccounts["length"] > 0) {
                         res.status(409).send({ success: false, result: "Username already taken." });
                         return [2 /*return*/];
                     }
                     password = bcrypt_1.default.hashSync(password, parseInt(process.env.PASSWORD_SALT));
-                    account_1.default.createUserAccount(username, password, userdata);
-                    res.status(200).send({ code: 200, result: userdata["type"] + " account " + username + " created successfully." });
+                    uid = account_1.default.createUserAccount(username, password, userdata);
+                    res.status(200).send({ code: 200, result: userdata["type"] + " account '" + username + "' with id '" + uid + "' created successfully." });
                     return [2 /*return*/];
             }
         });

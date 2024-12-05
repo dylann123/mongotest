@@ -62,24 +62,18 @@ var AccountManager = /** @class */ (function () {
     }
     AccountManager.createUserAccount = function (username, password, userdata) {
         return __awaiter(this, void 0, void 0, function () {
-            var baseUserData;
+            var id, fullUserData;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, database_1.default.writeToCollection(database_1.default.USER_COLLECTION_NAME, { username: username, password: password })];
                     case 1:
                         _a.sent();
-                        baseUserData = {
-                            username: username,
-                            type: "regional",
-                            events: [],
-                            firstname: "",
-                            lastname: "",
-                            admin: false
-                        };
-                        return [4 /*yield*/, database_1.default.writeToCollection(database_1.default.USERDATA_COLLECTION_NAME, __assign(__assign({}, baseUserData), userdata))];
+                        id = crypto.randomUUID();
+                        fullUserData = __assign(__assign(__assign({}, AccountManager.BASE_USER), { username: username, id: id }), userdata);
+                        return [4 /*yield*/, database_1.default.writeToCollection(database_1.default.USERDATA_COLLECTION_NAME, fullUserData)];
                     case 2:
                         _a.sent();
-                        return [2 /*return*/];
+                        return [2 /*return*/, id];
                 }
             });
         });
@@ -121,6 +115,20 @@ var AccountManager = /** @class */ (function () {
                 }
             });
         });
+    };
+    AccountManager.USERTYPE = {
+        REGIONAL: "regional",
+        STATE: "state",
+        OFFICER: "officer",
+    };
+    AccountManager.BASE_USER = {
+        username: "",
+        type: AccountManager.USERTYPE.REGIONAL,
+        events: [],
+        firstname: "",
+        lastname: "",
+        admin: false,
+        id: ""
     };
     return AccountManager;
 }());

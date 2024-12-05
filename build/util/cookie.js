@@ -61,12 +61,12 @@ function parseCookies(req, res, next) {
 }
 function parseCookiesRejectSession(req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var cookie, values, cookies, _i, values_2, cookie_2, key, value, sessionExistsCookie, sessionExistsBody, sessionExistsQuery, userdata;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var cookie, values, cookies, _i, values_2, cookie_2, key, value, sessionExistsCookie, _a, sessionExistsBody, _b, sessionExistsQuery, _c, userdata;
+        return __generator(this, function (_d) {
+            switch (_d.label) {
                 case 0:
                     cookie = req.headers.cookie;
-                    if (!cookie) return [3 /*break*/, 6];
+                    if (!cookie) return [3 /*break*/, 12];
                     values = cookie.split(';');
                     cookies = {};
                     for (_i = 0, values_2 = values; _i < values_2.length; _i++) {
@@ -76,32 +76,53 @@ function parseCookiesRejectSession(req, res, next) {
                         cookies[key] = value;
                     }
                     res.locals.validated = false;
+                    res.locals.administrator = false;
+                    if (!(cookies[session_1.default.COOKIE_NAME])) return [3 /*break*/, 2];
                     return [4 /*yield*/, session_1.default.verifyUserSession({ secret: cookies[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
                 case 1:
-                    sessionExistsCookie = (_a.sent());
-                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: req.body[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
+                    _a = (_d.sent());
+                    return [3 /*break*/, 3];
                 case 2:
-                    sessionExistsBody = (_a.sent());
-                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: req.query[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
+                    _a = { verified: false, result: {} };
+                    _d.label = 3;
                 case 3:
-                    sessionExistsQuery = (_a.sent()) // unsafe
-                    ;
-                    if (!(cookies[session_1.default.COOKIE_NAME] && (sessionExistsCookie["verified"] || sessionExistsBody["verified"] || sessionExistsQuery["verified"]))) return [3 /*break*/, 5];
+                    sessionExistsCookie = _a;
+                    if (!(req.body[session_1.default.COOKIE_NAME])) return [3 /*break*/, 5];
+                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: req.body[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
+                case 4:
+                    _b = (_d.sent());
+                    return [3 /*break*/, 6];
+                case 5:
+                    _b = { verified: false, result: {} };
+                    _d.label = 6;
+                case 6:
+                    sessionExistsBody = _b;
+                    if (!(req.query[session_1.default.COOKIE_NAME])) return [3 /*break*/, 8];
+                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: req.query[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
+                case 7:
+                    _c = (_d.sent());
+                    return [3 /*break*/, 9];
+                case 8:
+                    _c = { verified: false, result: {} }; // unsafe
+                    _d.label = 9;
+                case 9:
+                    sessionExistsQuery = _c;
+                    if (!(cookies[session_1.default.COOKIE_NAME] && (sessionExistsCookie["verified"] || sessionExistsBody["verified"] || sessionExistsQuery["verified"]))) return [3 /*break*/, 11];
                     res.locals.validated = true;
                     res.locals.username = sessionExistsCookie["result"]["username"] || sessionExistsBody["result"]["username"] || sessionExistsQuery["result"]["username"];
                     return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USERDATA_COLLECTION_NAME, { username: res.locals.username })];
-                case 4:
-                    userdata = _a.sent();
+                case 10:
+                    userdata = _d.sent();
                     res.locals.userdata = userdata[0]; // it is assumed that there is only one user with a given username, and that it actually exists
-                    _a.label = 5;
-                case 5:
-                    console.log("validated: " + res.locals.validated);
+                    res.locals.administrator = (res.locals.userdata.type == "officer" || res.locals.userdata.admin);
+                    _d.label = 11;
+                case 11:
                     res.locals.cookie = cookies;
-                    return [3 /*break*/, 7];
-                case 6:
+                    return [3 /*break*/, 13];
+                case 12:
                     res.locals.cookie = {};
-                    _a.label = 7;
-                case 7:
+                    _d.label = 13;
+                case 13:
                     next();
                     return [2 /*return*/];
             }
@@ -110,5 +131,6 @@ function parseCookiesRejectSession(req, res, next) {
 }
 function sendUnauthorized(res) {
     res.status(403).send({ code: 403, result: "Unauthorized request." });
+    return true;
 }
 exports.default = { parseCookies: parseCookies, parseCookiesRejectSession: parseCookiesRejectSession, sendUnauthorized: sendUnauthorized };

@@ -8,6 +8,7 @@
 import express, { query } from "express"
 import bcrypt from "bcrypt"
 import Database from "../util/database"
+import events from "../util/events"
 import SessionManager from "../util/session"
 import cookie from "../util/cookie"
 
@@ -22,19 +23,46 @@ router.use(cookie.parseCookiesRejectSession);
 
 // 404 handler
 router.get('/', function (req, res, next) {
-	if(!res.locals.validated) return
+	if (!res.locals.validated) return
 
 	res.status(404).send({ code: "404", error: "unknown path" });
 });
 
 /**
- * GET /user/login
- * @param username: string
- * @param password: string
- * @returns {
- * 	"code": "errorcode",
- * 	"result" "authcode"
- * }
+ * @apiDefine User User endpoints
+ * User endpoints are used for account management and authentication.
+ * 
+ * Authentication is required for most user endpoints.
+ * 
+ * Authentication is done through a session secret, which is given to the user upon login and is stored as a cookie by default.
+ * 
+ * The secret can be provided to the server in three ways:
+ * 
+ * 1. As a cookie
+ * 2. As a body parameter
+ * 3. As a query parameter	(unsafe)
+ * 
+ * If any of these are given to the server, the server will validate the session secret and allow access to the endpoint.
+ * 
+ * If the session secret is not provided, the server will return a 401 Unauthorized error.
+ *  
+ */
+
+/**
+ * @api {get} /user/login Login
+ * @apidescription Logs in a user
+ * @apiName Login
+ * @apiGroup User
+ * 
+ * @apiParam {String} username Username
+ * @apiParam {String} password Password
+ * 
+ * @apiSuccess result secret for session authentication. Is also set as a cookie.
+ * 
+ * @apiError MissingArgument 400 Must supply username and password
+ * @apiError InvalidArgument 400 Password must be a string
+ * @apiError Unauthorized 401 Username or password is incorrect
+ * @apiError UsernameNotFound 500 Internal server error
  */
 router.get('/login', async function (req, res, next) {
 	const username = req.query.username as string;
@@ -58,8 +86,8 @@ router.get('/login', async function (req, res, next) {
 		res.status(500).send({ code: 500, result: "Internal server error" });
 	else if (data["length"] == 1) {
 		const inputpassword = data[0]["password"]
-		if (bcrypt.compareSync(password, inputpassword)){
-			const sessionobject = await SessionManager.getUserSession({username: data[0]["username"]}, true).catch((error)=>{
+		if (bcrypt.compareSync(password, inputpassword)) {
+			const sessionobject = await SessionManager.getUserSession({ username: data[0]["username"] }, true).catch((error) => {
 				res.status(500).send({ code: 500, result: error })
 				return
 			})
@@ -68,22 +96,31 @@ router.get('/login', async function (req, res, next) {
 			res.status(200).send({ code: 200, result: secret });
 		}
 		else
-			res.status(401).send({ code: 403, result: "Username or password is incorrect" });
+			res.status(401).send({ code: 401, result: "Username or password is incorrect" });
 	} else
 		res.status(500).send({ code: 500, result: "Username not found" })
 })
 
 
 /**
- * POST /user/createaccount
- * On success, stores username and password, hashed with bcrypt
- * @param body.username username
- * @param body.password password; please hash
- * @param body.type type; Valid types: regional, state, officer
+ * @api {post} /user/createaccount Create an Account
+ * @apidescription Creates an account. Requires admin privileges (admin or officer).
+ * @apiName CreateAccount
+ * @apiGroup User
+ * 
+ * @apiParam {String} username Username
+ * @apiParam {String} password Password
+ * @apiParam {Object} userdata User data. Must contain: { type: "regional","state","officer", events: Array }. Can Contain: { firstname: String, lastname: String, admin: Boolean }
+ * 
+ * @apiSuccess result Account created successfully
+ * 
+ * @apiError MissingArgument 401 Must supply username, password, and userdata
+ * @apiError InvalidArgument 401 Must supply type/Must supply at least one event
+ * @apiError UsernameTaken 409 Username already taken
+ * 
  */
 router.post('/createaccount', async function (req, res, next) {
-	const invalidUser = !res.locals.validated || res.locals.userdata.type == undefined || 
-						(res.locals.userdata.type != "officer" && !res.locals.userdata.admin)
+	const invalidUser = !res.locals.administrator
 	if (invalidUser && req.body.secretadminkeywow != process.env.ADMIN_SECRET) {
 		res.status(501).send({ success: false, result: "and who do you think you are? (invalidated request)" });
 		return
@@ -95,17 +132,39 @@ router.post('/createaccount', async function (req, res, next) {
 	const userdata: object = body.userdata
 
 	if (username == undefined || password == undefined) {
-		res.status(400).send({ success: false, result: "Must supply username and password; got user "+username+" and password "+password });
+		res.status(400).send({ success: false, result: "Must supply username and password; got user " + username + " and password " + password });
+		return
+	}
+
+	if (userdata == undefined) {
+		res.status(401).send({ success: false, result: "Must supply userdata" });
 		return
 	}
 
 	if (userdata["type"] == undefined) {
-		res.status(400).send({ success: false, result: "Must supply type" });
+		res.status(401).send({ success: false, result: "Must supply userdata.type" });
+		return
+	}
+
+	if (userdata["type"] != AccountManager.USERTYPE.REGIONAL && userdata["type"] != AccountManager.USERTYPE.STATE && userdata["type"] != AccountManager.USERTYPE.OFFICER) {
+		res.status(401).send({ success: false, result: "Invalid userdata.type; must be 'regional', 'state', or 'officer'" });
 		return
 	}
 
 	if (userdata["events"] == undefined) {
-		res.status(400).send({ success: false, result: "Must supply at least one event" });
+		res.status(401).send({ success: false, result: "Must supply at least one event (userdata.events)" });
+		return
+	}
+
+	const invalid_events = []
+	for (let event of userdata["events"]) {
+		if(!events.EVENT_NAMES[event]){
+			invalid_events.push(event)
+			return
+		}
+	}	
+	if (invalid_events.length > 0) {
+		res.status(401).send({ success: false, result: "Invalid events: " + invalid_events.join(", ") });
 		return
 	}
 
@@ -125,10 +184,9 @@ router.post('/createaccount', async function (req, res, next) {
 
 	password = bcrypt.hashSync(password, parseInt(process.env.PASSWORD_SALT));
 
+	const uid = AccountManager.createUserAccount(username, password, userdata)
 
-	
-	AccountManager.createUserAccount(username, password, userdata)
-	res.status(200).send({ code: 200, result: userdata["type"]+" account "+username+" created successfully." })
+	res.status(200).send({ code: 200, result: userdata["type"] + " account '" + username + "' with id '"+uid+"' created successfully." })
 })
 
 export default router;

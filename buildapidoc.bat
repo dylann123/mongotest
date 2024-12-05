@@ -1,0 +1,1 @@
+node ./node_modules/apidoc/bin/apidoc -i ./src/routes -o ./apidoc
