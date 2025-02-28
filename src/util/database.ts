@@ -20,9 +20,8 @@ class Database {
     public static REGIONALS = "regionals"
 
     public static SESSION_COLLECTION_NAME = "sessiondata" // session data: { user, secret, expires }
-    public static USER_COLLECTION_NAME = "logindata" // user, password { user, password }
     public static USERDATA_COLLECTION_NAME = "userdata" // profile data { user, type, events, firstname, lastname, admin }
-    public static TOURNAMENT_COLLECTION_NAME = "tournamentdata" // tournament data { name, date, location, schedule, links, training } 
+    public static COMPETITION_COLLECTION_NAME = "competitiondata" // competition data { name, date, location, schedule, links, training } 
     public static RANKINGS_COLLECTION_NAME = "rankingsdata" // rankings data { type: "individual"/"team", event, data, id: 1/2/3/userid }
     public static EVENTS_COLLECTION_NAME = "eventstorage" // drive data { name, link, type }
     public static PHOTOS_COLLECTION_NAME = "photostorage" // drive data { name, photolink }
@@ -62,9 +61,6 @@ class Database {
         return new Promise(async function (resolve, reject) {
             const dbClient = await client
             const db: Db = dbClient.db(DATABASE_NAME)
-
-            if (query["_id"] && typeof query["_id"] == "string") 
-                query["_id"] = ObjectId.createFromHexString(query["_id"])
             
             const data = await db.collection(collection).find(query).toArray()
 
@@ -93,7 +89,6 @@ class Database {
                 return
             }
             if (queries["length"] == 0){
-                console.log(query)
                 reject("modifyItemInCollection: query returned no rows")
                 return
             }
@@ -101,10 +96,8 @@ class Database {
             const newRow = queries[0]
 
             for(let i in replacement){
-                if (i == "_id") continue
                 newRow[i] = replacement[i]
             }
-            console.log(newRow)
 
             Database.removeItemFromCollection(collection, query)
             Database.writeToCollection(collection, newRow)

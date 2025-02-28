@@ -46,6 +46,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var database_1 = __importDefault(require("./database"));
+var logger_1 = __importDefault(require("./logger"));
 var SessionManager = /** @class */ (function () {
     function SessionManager() {
     }
@@ -53,42 +54,34 @@ var SessionManager = /** @class */ (function () {
         var secret = crypto.randomUUID();
         return secret;
     };
-    /**
-     * Gets a user session
-     * @param data query by userobject
-     * @param createSessionIfMissing boolean; if true, will create a session if the user does not exist
-     * @returns Promise<object>
-     */
-    SessionManager.getUserSession = function (data_1) {
-        return __awaiter(this, arguments, void 0, function (data, createSessionIfMissing) {
-            if (createSessionIfMissing === void 0) { createSessionIfMissing = false; }
+    SessionManager.verifyUserSession = function (query) {
+        return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         return __awaiter(this, void 0, void 0, function () {
-                            var users, secret;
+                            var users, user;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
-                                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.SESSION_COLLECTION_NAME, data)];
+                                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.SESSION_COLLECTION_NAME, query)];
                                     case 1:
                                         users = _a.sent();
-                                        if (!(users["length"] == 1)) return [3 /*break*/, 2];
-                                        resolve(users[0]);
-                                        return [3 /*break*/, 6];
+                                        if (!(users["length"] == 1)) return [3 /*break*/, 3];
+                                        user = users[0];
+                                        return [4 /*yield*/, SessionManager.isSessionExpired({ id: user["id"] })];
                                     case 2:
-                                        if (!(users["length"] > 1)) return [3 /*break*/, 3];
-                                        resolve({ error: "getUserSession: multiple users in selection" });
-                                        return [3 /*break*/, 6];
+                                        if (_a.sent()) {
+                                            SessionManager.removeSession({ id: user["id"] });
+                                            resolve({ verified: false, result: "verifyUserSession: session expired" });
+                                            return [2 /*return*/];
+                                        }
+                                        SessionManager.refreshSession({ id: user["id"] });
+                                        resolve({ verified: true, result: users[0] });
+                                        return [3 /*break*/, 4];
                                     case 3:
-                                        if (!createSessionIfMissing) return [3 /*break*/, 5];
-                                        return [4 /*yield*/, SessionManager.createUserSession(data)];
-                                    case 4:
-                                        secret = _a.sent();
-                                        resolve(SessionManager.getUserSession({ secret: secret }));
-                                        return [3 /*break*/, 6];
-                                    case 5:
-                                        reject({ error: "getUserSession: user session does not exist" });
-                                        _a.label = 6;
-                                    case 6: return [2 /*return*/];
+                                        logger_1.default.log(query);
+                                        resolve({ verified: false, result: "verifyUserSession: no user found" });
+                                        _a.label = 4;
+                                    case 4: return [2 /*return*/];
                                 }
                             });
                         });
@@ -96,45 +89,26 @@ var SessionManager = /** @class */ (function () {
             });
         });
     };
-    SessionManager.verifyUserSession = function (data) {
+    SessionManager.createUserSession = function (id) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         return __awaiter(this, void 0, void 0, function () {
-                            var users;
+                            var checkExistingSession, userSession;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
-                                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.SESSION_COLLECTION_NAME, data)];
+                                    case 0: return [4 /*yield*/, SessionManager.verifyUserSession({ id: id })];
                                     case 1:
-                                        users = _a.sent();
-                                        if (users["length"] == 1)
-                                            resolve({ verified: true, result: users[0] });
-                                        else if (users["length"] > 1)
-                                            resolve({ verified: false, result: "verifyUserSession: multiple users found" });
-                                        else
-                                            resolve({ verified: false, result: "verifyUserSession: no user found" });
-                                        return [2 /*return*/];
-                                }
-                            });
-                        });
-                    })];
-            });
-        });
-    };
-    SessionManager.createUserSession = function (userdata) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/, new Promise(function (resolve, reject) {
-                        return __awaiter(this, void 0, void 0, function () {
-                            var userSession;
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0:
-                                        userSession = structuredClone(userdata);
+                                        checkExistingSession = _a.sent();
+                                        if (checkExistingSession["verified"]) {
+                                            resolve(checkExistingSession["result"]["secret"]);
+                                            return [2 /*return*/];
+                                        }
+                                        userSession = { id: id };
                                         userSession["secret"] = SessionManager.generateSecret();
                                         userSession["expires"] = Date.now() + SessionManager.MAX_SESSION_LENGTH_MS;
                                         return [4 /*yield*/, database_1.default.writeToCollection(database_1.default.SESSION_COLLECTION_NAME, userSession)];
-                                    case 1:
+                                    case 2:
                                         _a.sent();
                                         resolve(userSession["secret"]);
                                         return [2 /*return*/];
@@ -145,6 +119,11 @@ var SessionManager = /** @class */ (function () {
             });
         });
     };
+    /**
+     * Refreshes a session by updating the expiration time
+     * @param id user id
+     * @returns boolean; true if session was refreshed, false if not found at all
+     */
     SessionManager.refreshSession = function (query) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -157,8 +136,6 @@ var SessionManager = /** @class */ (function () {
                                     case 1:
                                         sessions = _a.sent();
                                         if (sessions["length"] == 0)
-                                            resolve(false);
-                                        else if (sessions["length"] > 1)
                                             resolve(false);
                                         else {
                                             userSession = sessions[0];
@@ -173,6 +150,11 @@ var SessionManager = /** @class */ (function () {
             });
         });
     };
+    /**
+     * Removes a session from the database
+     * @param query query object
+     * @returns boolean; true if session was removed, false if not
+     */
     SessionManager.removeSession = function (query) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -181,16 +163,14 @@ var SessionManager = /** @class */ (function () {
                             var sessions, userSession;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
-                                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.SESSION_COLLECTION_NAME, (typeof query === "string") ? { secret: query } : query)];
+                                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.SESSION_COLLECTION_NAME, query)];
                                     case 1:
                                         sessions = _a.sent();
                                         if (sessions["length"] == 0)
                                             resolve(false);
-                                        else if (sessions["length"] > 1)
-                                            resolve(false);
                                         else {
                                             userSession = sessions[0];
-                                            database_1.default.removeItemsFromCollection(database_1.default.SESSION_COLLECTION_NAME, userSession);
+                                            database_1.default.removeItemFromCollection(database_1.default.SESSION_COLLECTION_NAME, userSession);
                                             resolve(true);
                                         }
                                         return [2 /*return*/];
@@ -201,11 +181,53 @@ var SessionManager = /** @class */ (function () {
             });
         });
     };
-    SessionManager.setSessionCookie = function (res, secret) {
-        res.cookie(SessionManager.COOKIE_NAME, secret, { maxAge: SessionManager.MAX_SESSION_LENGTH_MS, httpOnly: true });
-        return true;
+    /**
+     * Checks if a session is expired
+     * @param query query object
+     * @returns boolean; true if session is expired or query is invalid, false if not
+     */
+    SessionManager.isSessionExpired = function (query) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        return __awaiter(this, void 0, void 0, function () {
+                            var sessions, userSession;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.SESSION_COLLECTION_NAME, query)];
+                                    case 1:
+                                        sessions = _a.sent();
+                                        if (sessions["length"] == 0)
+                                            resolve(true);
+                                        else {
+                                            userSession = sessions[0];
+                                            if (userSession["expires"] < Date.now()) {
+                                                resolve(true);
+                                            }
+                                            else
+                                                resolve(false);
+                                        }
+                                        return [2 /*return*/];
+                                }
+                            });
+                        });
+                    })];
+            });
+        });
     };
-    SessionManager.COOKIE_NAME = "secret";
+    SessionManager.getSessionCookieHeader = function (secret) {
+        if (secret === true)
+            return "".concat(SessionManager.SECRET_COOKIE_NAME, "=; Path=/; Max-Age=0; SameSite=Strict; HttpOnly;"); // logout
+        else
+            return "".concat(SessionManager.SECRET_COOKIE_NAME, "=").concat(secret, "; Path=/; Max-Age=").concat(SessionManager.MAX_SESSION_LENGTH_MS, "; SameSite=Strict; HttpOnly;");
+    };
+    SessionManager.getUserCookieHeader = function (id) {
+        if (id === true)
+            return "id=; Path=/; Max-Age=0; SameSite=Strict;";
+        else
+            return "id=".concat(id, "; Path=/; Max-Age=").concat(SessionManager.MAX_SESSION_LENGTH_MS, "; SameSite=Strict;");
+    };
+    SessionManager.SECRET_COOKIE_NAME = "client_secret!DO_NOT_SHARE";
     SessionManager.MAX_SESSION_LENGTH_MS = 1000 * 60 * 60;
     return SessionManager;
 }());

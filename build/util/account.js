@@ -60,30 +60,37 @@ var database_1 = __importDefault(require("./database"));
 var AccountManager = /** @class */ (function () {
     function AccountManager() {
     }
-    AccountManager.createUserAccount = function (username, password, userdata) {
+    AccountManager.createUserAccount = function (g_id, userdata) {
         return __awaiter(this, void 0, void 0, function () {
-            var id, fullUserData;
+            var fullUserData;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, database_1.default.writeToCollection(database_1.default.USER_COLLECTION_NAME, { username: username, password: password })];
-                    case 1:
-                        _a.sent();
-                        id = crypto.randomUUID();
-                        fullUserData = __assign(__assign(__assign({}, AccountManager.BASE_USER), { username: username, id: id }), userdata);
+                    case 0:
+                        fullUserData = __assign(__assign(__assign({}, AccountManager.BASE_USER), { id: g_id }), userdata);
                         return [4 /*yield*/, database_1.default.writeToCollection(database_1.default.USERDATA_COLLECTION_NAME, fullUserData)];
-                    case 2:
+                    case 1:
                         _a.sent();
-                        return [2 /*return*/, id];
+                        return [2 /*return*/];
                 }
             });
         });
     };
-    AccountManager.getUserData = function (username) {
+    AccountManager.doesUserExist = function (query) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USERDATA_COLLECTION_NAME, query)];
+                    case 1: return [2 /*return*/, (_a.sent()).length > 0];
+                }
+            });
+        });
+    };
+    AccountManager.getUserAccount = function (query) {
         return __awaiter(this, void 0, void 0, function () {
             var data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USERDATA_COLLECTION_NAME, { username: username })];
+                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USERDATA_COLLECTION_NAME, query)];
                     case 1:
                         data = _a.sent();
                         return [2 /*return*/, data];
@@ -91,24 +98,11 @@ var AccountManager = /** @class */ (function () {
             });
         });
     };
-    AccountManager.getUserAccount = function (username) {
-        return __awaiter(this, void 0, void 0, function () {
-            var data;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USER_COLLECTION_NAME, { username: username })];
-                    case 1:
-                        data = _a.sent();
-                        return [2 /*return*/, data];
-                }
-            });
-        });
-    };
-    AccountManager.updateUserAccount = function (username, data) {
+    AccountManager.updateUserAccount = function (id, data) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, database_1.default.modifyItemInCollection(database_1.default.USER_COLLECTION_NAME, { username: username }, data)];
+                    case 0: return [4 /*yield*/, database_1.default.modifyItemInCollection(database_1.default.USERDATA_COLLECTION_NAME, { id: id }, data)];
                     case 1:
                         _a.sent();
                         return [2 /*return*/];
@@ -122,13 +116,13 @@ var AccountManager = /** @class */ (function () {
         OFFICER: "officer",
     };
     AccountManager.BASE_USER = {
-        username: "",
+        id: "",
+        email: "",
         type: AccountManager.USERTYPE.REGIONAL,
         events: [],
         firstname: "",
         lastname: "",
-        admin: false,
-        id: ""
+        admin: false
     };
     return AccountManager;
 }());

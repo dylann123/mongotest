@@ -17,39 +17,33 @@ class AccountManager {
 	}
 
 	public static BASE_USER = {
-		username: "",
+		id: "",
+		email: "",
 		type: AccountManager.USERTYPE.REGIONAL,
 		events: [],
 		firstname: "",
 		lastname: "",
-		admin: false,
-		id: ""
+		admin: false
 	}
 
-	public static async createUserAccount(username: string, password: string, userdata: object) {
+	public static async createUserAccount(g_id: number, userdata: object) {
 
-		await Database.writeToCollection(Database.USER_COLLECTION_NAME, { username: username, password: password })
-
-
-		const id = crypto.randomUUID()
-		const fullUserData = { ...AccountManager.BASE_USER, ...{ username: username, id: id }, ...userdata }
-		await Database.writeToCollection(Database.USERDATA_COLLECTION_NAME,fullUserData)
-		return id
+		const fullUserData = { ...AccountManager.BASE_USER, ...{ id: g_id }, ...userdata }
+		await Database.writeToCollection(Database.USERDATA_COLLECTION_NAME, fullUserData)
 	}
 
-	public static async getUserData(username: string) {
-	const data = await Database.queryItemsInCollection(Database.USERDATA_COLLECTION_NAME, { username: username })
-	return data
-}
+	public static async doesUserExist(query: object) {
+		return (await Database.queryItemsInCollection(Database.USERDATA_COLLECTION_NAME, query)).length > 0
+	}
 
-	public static async getUserAccount(username: string) {
-	const data = await Database.queryItemsInCollection(Database.USER_COLLECTION_NAME, { username: username })
-	return data
-}
+	public static async getUserAccount(query: object) {
+		const data = await Database.queryItemsInCollection(Database.USERDATA_COLLECTION_NAME, query)
+		return data
+	}
 
-	public static async updateUserAccount(username: string, data: object) {
-	await Database.modifyItemInCollection(Database.USER_COLLECTION_NAME, { username: username }, data)
-}
+	public static async updateUserAccount(id: string, data: object) {
+		await Database.modifyItemInCollection(Database.USERDATA_COLLECTION_NAME, { id: id }, data)
+	}
 
 }
 

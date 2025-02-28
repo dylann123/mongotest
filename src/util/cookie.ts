@@ -1,6 +1,11 @@
 import { Response, Request, NextFunction } from "express"
 import SessionManager from "./session";
 import Database from "./database";
+import Logger from "./logger";
+import dotenv from "dotenv"
+dotenv.config({ path: __dirname + '/../../.env' })
+
+Logger.log(process.env)
 
 function parseCookies(req: Request, res: Response, next: NextFunction) {
     // https://stackoverflow.com/questions/44816519/how-to-get-cookie-value-in-expressjs
@@ -22,6 +27,7 @@ function parseCookies(req: Request, res: Response, next: NextFunction) {
 
 async function parseCookiesRejectSession(req: Request, res: Response, next: NextFunction) {
     const { headers: { cookie } } = req;
+    Logger.log(req.headers)
     if (cookie) {
         const values = cookie.split(';')
         const cookies = {}
@@ -34,15 +40,18 @@ async function parseCookiesRejectSession(req: Request, res: Response, next: Next
         res.locals.validated = false
         res.locals.administrator = false
 
-        const sessionExistsCookie = (cookies[SessionManager.COOKIE_NAME]) ? (await SessionManager.verifyUserSession({secret: cookies[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) : {verified: false, result: {}}
-        const sessionExistsBody = (req.body[SessionManager.COOKIE_NAME]) ? (await SessionManager.verifyUserSession({secret: req.body[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) : {verified: false, result: {}}
-        const sessionExistsQuery = (req.query[SessionManager.COOKIE_NAME]) ? (await SessionManager.verifyUserSession({secret: req.query[SessionManager.COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) : {verified: false, result: {}} // unsafe
-        if (cookies[SessionManager.COOKIE_NAME] && (sessionExistsCookie["verified"] || sessionExistsBody["verified"] || sessionExistsQuery["verified"])){
+        const sessionExistsCookie = (cookies[SessionManager.SECRET_COOKIE_NAME]) ? (await SessionManager.verifyUserSession({secret: cookies[SessionManager.SECRET_COOKIE_NAME]}).catch((err) => { res.locals.validated = false })) : {verified: false, result: {}}
+        if (cookies[SessionManager.SECRET_COOKIE_NAME] && (sessionExistsCookie["verified"])){
             res.locals.validated = true
-            res.locals.username = sessionExistsCookie["result"]["username"] || sessionExistsBody["result"]["username"] || sessionExistsQuery["result"]["username"]
-            const userdata = await Database.queryItemsInCollection(Database.USERDATA_COLLECTION_NAME, {username: res.locals.username})
-            res.locals.userdata = userdata[0] // it is assumed that there is only one user with a given username, and that it actually exists
+            res.locals.id = sessionExistsCookie["result"]["id"]
+            res.setHeader("Set-Cookie", SessionManager.getUserCookieHeader(res.locals.id))
+            const userdata = await Database.queryItemsInCollection(Database.USERDATA_COLLECTION_NAME, {id: res.locals.id})
+            res.locals.userdata = userdata[0] // it is assumed that there is only one user with a given id, and that it actually exists
             res.locals.administrator = (res.locals.userdata.type == "officer" || res.locals.userdata.admin)
+            
+            // allow cors for identified users
+            res.setHeader("Access-Control-Allow-Origin", process.env.CLIENT_HOST)
+            res.setHeader("Access-Control-Allow-Credentials", "true")
         }
         res.locals.cookie = cookies;
     }

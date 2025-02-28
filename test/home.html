@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Home</title>
+</head>
+
+<body>
+	<fieldset>
+		<legend>user</legend>
+
+		<div>
+			id: <span id="user-id"></span>
+		</div>
+
+		<button id="user-signout" onclick="user.signout()">Sign out</button>
+		<br>
+		<button id="user-getuserinfo" onclick="user.getuserinfo()">Get user data</button>
+		<span id="user-userdata">{}</span>
+		<br>
+		<button id="user-loggedin" onclick="user.loggedin()">Check login</button>
+		<span id="user-loginstatus">n/a</span>
+
+	</fieldset>
+
+	<script src="./script.js"></script>
+</body>
+
+</html>

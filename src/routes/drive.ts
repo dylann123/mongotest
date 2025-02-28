@@ -66,7 +66,7 @@ router.get('/:event', async function (req, res, next) {
 		return
 	}
 
-	const users = (await Database.queryItemsInCollection(Database.USER_COLLECTION_NAME, { username: res.locals.username }))
+	const users = (await Database.queryItemsInCollection(Database.USERDATA_COLLECTION_NAME, { id: res.locals.id }))
 
 	const user = users[0]
 

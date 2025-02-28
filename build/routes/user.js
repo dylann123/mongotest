@@ -1,10 +1,4 @@
 "use strict";
-/**
- * @author Dylan Nguyen (@dylann123)
- * Last Updated: 13 September 2024
- * Handles endpoint requests to /user
- * Login, signup, and account options
- */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -46,190 +40,121 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var express_1 = __importDefault(require("express"));
-var bcrypt_1 = __importDefault(require("bcrypt"));
-var events_1 = __importDefault(require("../util/events"));
 var session_1 = __importDefault(require("../util/session"));
 var cookie_1 = __importDefault(require("../util/cookie"));
+var OAuth2Client = require('google-auth-library').OAuth2Client; // it doesn't like es6. I don't know why. Please don't ask me.
 var dotenv_1 = __importDefault(require("dotenv"));
 var account_1 = __importDefault(require("../util/account"));
+var logger_1 = __importDefault(require("../util/logger"));
 dotenv_1.default.config({ path: __dirname + '/../../.env' });
+var app_id = "195885898085-lliad6echbr00hs29tdni25bo3t7rcod.apps.googleusercontent.com";
+var client = new OAuth2Client();
 var router = express_1.default.Router();
+router.use(express_1.default.json());
+router.use(express_1.default.urlencoded({ extended: true }));
 // reject unauthorized sessions
 router.use(cookie_1.default.parseCookiesRejectSession);
 // 404 handler
 router.get('/', function (req, res, next) {
-    if (!res.locals.validated)
-        return;
     res.status(404).send({ code: "404", error: "unknown path" });
 });
-/**
- * @apiDefine User User endpoints
- * User endpoints are used for account management and authentication.
- *
- * Authentication is required for most user endpoints.
- *
- * Authentication is done through a session secret, which is given to the user upon login and is stored as a cookie by default.
- *
- * The secret can be provided to the server in three ways:
- *
- * 1. As a cookie
- * 2. As a body parameter
- * 3. As a query parameter	(unsafe)
- *
- * If any of these are given to the server, the server will validate the session secret and allow access to the endpoint.
- *
- * If the session secret is not provided, the server will return a 401 Unauthorized error.
- *
- */
-/**
- * @api {get} /user/login Login
- * @apidescription Logs in a user
- * @apiName Login
- * @apiGroup User
- *
- * @apiParam {String} username Username
- * @apiParam {String} password Password
- *
- * @apiSuccess result secret for session authentication. Is also set as a cookie.
- *
- * @apiError MissingArgument 400 Must supply username and password
- * @apiError InvalidArgument 400 Password must be a string
- * @apiError Unauthorized 401 Username or password is incorrect
- * @apiError UsernameNotFound 500 Internal server error
- */
-router.get('/login', function (req, res, next) {
-    return __awaiter(this, void 0, void 0, function () {
-        var username, password, data, inputpassword, sessionobject, secret;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    username = req.query.username;
-                    password = req.query.password;
-                    if (username == undefined || password == undefined) {
-                        res.status(400).send({ code: 400, result: "Must supply username and password" });
-                        return [2 /*return*/];
-                    }
-                    if (typeof password == "string")
-                        password = password.trim();
-                    else {
-                        res.status(400).send({ code: 400, result: "Password must be a string" });
-                        return [2 /*return*/];
-                    }
-                    return [4 /*yield*/, account_1.default.getUserAccount(username)];
-                case 1:
-                    data = _a.sent();
-                    if (!(data["length"] > 1)) return [3 /*break*/, 2];
-                    res.status(500).send({ code: 500, result: "Internal server error" });
-                    return [3 /*break*/, 7];
-                case 2:
-                    if (!(data["length"] == 1)) return [3 /*break*/, 6];
-                    inputpassword = data[0]["password"];
-                    if (!bcrypt_1.default.compareSync(password, inputpassword)) return [3 /*break*/, 4];
-                    return [4 /*yield*/, session_1.default.getUserSession({ username: data[0]["username"] }, true).catch(function (error) {
-                            res.status(500).send({ code: 500, result: error });
-                            return;
-                        })];
-                case 3:
-                    sessionobject = _a.sent();
-                    secret = sessionobject["secret"];
-                    session_1.default.setSessionCookie(res, secret);
-                    res.status(200).send({ code: 200, result: secret });
-                    return [3 /*break*/, 5];
-                case 4:
-                    res.status(401).send({ code: 401, result: "Username or password is incorrect" });
-                    _a.label = 5;
-                case 5: return [3 /*break*/, 7];
-                case 6:
-                    res.status(500).send({ code: 500, result: "Username not found" });
-                    _a.label = 7;
-                case 7: return [2 /*return*/];
-            }
-        });
-    });
-});
-/**
- * @api {post} /user/createaccount Create an Account
- * @apidescription Creates an account. Requires admin privileges (admin or officer).
- * @apiName CreateAccount
- * @apiGroup User
- *
- * @apiParam {String} username Username
- * @apiParam {String} password Password
- * @apiParam {Object} userdata User data. Must contain: { type: "regional","state","officer", events: Array }. Can Contain: { firstname: String, lastname: String, admin: Boolean }
- *
- * @apiSuccess result Account created successfully
- *
- * @apiError MissingArgument 401 Must supply username, password, and userdata
- * @apiError InvalidArgument 401 Must supply type/Must supply at least one event
- * @apiError UsernameTaken 409 Username already taken
- *
- */
-router.post('/createaccount', function (req, res, next) {
-    return __awaiter(this, void 0, void 0, function () {
-        var invalidUser, body, username, password, userdata, invalid_events, _i, _a, event_1, existingAccounts, uid;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    invalidUser = !res.locals.administrator;
-                    if (invalidUser && req.body.secretadminkeywow != process.env.ADMIN_SECRET) {
-                        res.status(501).send({ success: false, result: "and who do you think you are? (invalidated request)" });
-                        return [2 /*return*/];
-                    }
-                    body = req.body;
-                    username = body.username;
-                    password = body.password;
-                    userdata = body.userdata;
-                    if (username == undefined || password == undefined) {
-                        res.status(400).send({ success: false, result: "Must supply username and password; got user " + username + " and password " + password });
-                        return [2 /*return*/];
-                    }
-                    if (userdata == undefined) {
-                        res.status(401).send({ success: false, result: "Must supply userdata" });
-                        return [2 /*return*/];
-                    }
-                    if (userdata["type"] == undefined) {
-                        res.status(401).send({ success: false, result: "Must supply userdata.type" });
-                        return [2 /*return*/];
-                    }
-                    if (userdata["type"] != account_1.default.USERTYPE.REGIONAL && userdata["type"] != account_1.default.USERTYPE.STATE && userdata["type"] != account_1.default.USERTYPE.OFFICER) {
-                        res.status(401).send({ success: false, result: "Invalid userdata.type; must be 'regional', 'state', or 'officer'" });
-                        return [2 /*return*/];
-                    }
-                    if (userdata["events"] == undefined) {
-                        res.status(401).send({ success: false, result: "Must supply at least one event (userdata.events)" });
-                        return [2 /*return*/];
-                    }
-                    invalid_events = [];
-                    for (_i = 0, _a = userdata["events"]; _i < _a.length; _i++) {
-                        event_1 = _a[_i];
-                        if (!events_1.default.EVENT_NAMES[event_1]) {
-                            invalid_events.push(event_1);
-                            return [2 /*return*/];
-                        }
-                    }
-                    if (invalid_events.length > 0) {
-                        res.status(401).send({ success: false, result: "Invalid events: " + invalid_events.join(", ") });
-                        return [2 /*return*/];
-                    }
-                    if (typeof password == "string")
-                        password = password.trim();
-                    else {
-                        res.status(400).send({ code: 400, result: "Password must be a string" });
-                        return [2 /*return*/];
-                    }
-                    return [4 /*yield*/, account_1.default.getUserAccount(username)];
-                case 1:
-                    existingAccounts = _b.sent();
-                    if (existingAccounts["length"] > 0) {
-                        res.status(409).send({ success: false, result: "Username already taken." });
-                        return [2 /*return*/];
-                    }
-                    password = bcrypt_1.default.hashSync(password, parseInt(process.env.PASSWORD_SALT));
-                    uid = account_1.default.createUserAccount(username, password, userdata);
-                    res.status(200).send({ code: 200, result: userdata["type"] + " account '" + username + "' with id '" + uid + "' created successfully." });
+router.post("/logout", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var session;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0: return [4 /*yield*/, session_1.default.verifyUserSession({ secret: res.locals.cookie[session_1.default.SECRET_COOKIE_NAME] })];
+            case 1:
+                session = _a.sent();
+                if (!session["verified"]) {
+                    res.status(401).send("Unauthorized");
                     return [2 /*return*/];
-            }
-        });
+                }
+                session_1.default.removeSession({ secret: res.locals.cookie[session_1.default.SECRET_COOKIE_NAME] }).then(function () {
+                    res.setHeader("Set-Cookie", [session_1.default.getSessionCookieHeader(true), session_1.default.getUserCookieHeader(true)]);
+                    res.status(200).send("Logged out");
+                });
+                return [2 /*return*/];
+        }
     });
-});
+}); });
+router.get("/getuserinfo", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var session, user;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0: return [4 /*yield*/, session_1.default.verifyUserSession({ secret: res.locals.cookie[session_1.default.SECRET_COOKIE_NAME] })];
+            case 1:
+                session = _a.sent();
+                if (!session["verified"]) {
+                    res.status(401).send("Unauthorized");
+                    return [2 /*return*/];
+                }
+                return [4 /*yield*/, account_1.default.getUserAccount({ id: session["result"]["id"] })];
+            case 2:
+                user = _a.sent();
+                res.status(200).send(user);
+                return [2 /*return*/];
+        }
+    });
+}); });
+router.get("/loggedin", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var session;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0: return [4 /*yield*/, session_1.default.verifyUserSession({ secret: res.locals.cookie[session_1.default.SECRET_COOKIE_NAME] })];
+            case 1:
+                session = _a.sent();
+                if (!session["verified"]) {
+                    res.status(401).send({ 'value': 'false' });
+                    return [2 /*return*/];
+                }
+                res.status(200).send({ 'value': 'true' });
+                return [2 /*return*/];
+        }
+    });
+}); });
+router.post("/g_login", function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var cookies, csrf_cookie, csrf_body, ticket, payload, exists;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                cookies = req.headers.cookie.split(";");
+                csrf_cookie = "";
+                cookies.forEach(function (cookie) {
+                    var _a = cookie.split("="), key = _a[0], value = _a[1];
+                    if (key.trim() === "g_csrf_token") {
+                        csrf_cookie = value;
+                    }
+                });
+                if (!csrf_cookie) {
+                    res.status(401).send("Unauthorized");
+                    return [2 /*return*/];
+                }
+                csrf_body = req.body.g_csrf_token;
+                if (!csrf_body || csrf_cookie !== csrf_body) {
+                    res.status(401).send("Unauthorized");
+                    return [2 /*return*/];
+                }
+                return [4 /*yield*/, client.verifyIdToken({
+                        idToken: req.body.credential,
+                        audience: app_id
+                    })];
+            case 1:
+                ticket = _a.sent();
+                payload = ticket.getPayload();
+                res.cookie("g_csrf_token", "", { maxAge: 0 }); // clear csrf token
+                return [4 /*yield*/, account_1.default.doesUserExist({ id: parseInt(payload.sub) })];
+            case 2:
+                exists = _a.sent();
+                if (!exists) {
+                    account_1.default.createUserAccount(parseInt(payload.sub), { firstname: payload.given_name, lastname: payload.family_name, email: payload.email });
+                }
+                session_1.default.createUserSession(parseInt(payload.sub)).then(function (secret) {
+                    res.setHeader("Set-Cookie", [session_1.default.getSessionCookieHeader(secret), session_1.default.getUserCookieHeader(payload.sub)]);
+                    logger_1.default.log(payload.name + " logged in as id " + payload.sub + " with secret " + secret);
+                    res.status(200).redirect(process.env.CLIENT_HOST + "/home.html");
+                });
+                return [2 /*return*/];
+        }
+    });
+}); });
 exports.default = router;

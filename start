@@ -1,0 +1,6 @@
+echo Launching typescript server
+screen -dm -S wso-ts npx tsc -w
+echo Launching mongo server
+screen -dm -S wso-mongodb npm run mongo
+echo Launching app
+screen -dm -S wso-app npm run start 

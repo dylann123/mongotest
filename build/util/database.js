@@ -52,6 +52,9 @@ var client = new mongodb_1.MongoClient(process.env.DATABASE_URL).connect();
 var Database = /** @class */ (function () {
     function Database() {
     }
+    Database.deleteItemInCollection = function (collection, query) {
+        throw new Error("Method not implemented.");
+    };
     Database.generateID = function () {
         return crypto.randomUUID().toString();
     };
@@ -106,8 +109,6 @@ var Database = /** @class */ (function () {
                                     case 1:
                                         dbClient = _a.sent();
                                         db = dbClient.db(DATABASE_NAME);
-                                        if (query["_id"] && typeof query["_id"] == "string")
-                                            query["_id"] = mongodb_1.ObjectId.createFromHexString(query["_id"]);
                                         return [4 /*yield*/, db.collection(collection).find(query).toArray()
                                             // convert to JS object
                                         ];
@@ -150,17 +151,13 @@ var Database = /** @class */ (function () {
                                             return [2 /*return*/];
                                         }
                                         if (queries["length"] == 0) {
-                                            console.log(query);
                                             reject("modifyItemInCollection: query returned no rows");
                                             return [2 /*return*/];
                                         }
                                         newRow = queries[0];
                                         for (i in replacement) {
-                                            if (i == "_id")
-                                                continue;
                                             newRow[i] = replacement[i];
                                         }
-                                        console.log(newRow);
                                         Database.removeItemFromCollection(collection, query);
                                         Database.writeToCollection(collection, newRow);
                                         resolve(queries);
@@ -307,9 +304,8 @@ var Database = /** @class */ (function () {
     Database.STATES = "states";
     Database.REGIONALS = "regionals";
     Database.SESSION_COLLECTION_NAME = "sessiondata"; // session data: { user, secret, expires }
-    Database.USER_COLLECTION_NAME = "logindata"; // user, password { user, password }
     Database.USERDATA_COLLECTION_NAME = "userdata"; // profile data { user, type, events, firstname, lastname, admin }
-    Database.TOURNAMENT_COLLECTION_NAME = "tournamentdata"; // tournament data { name, date, location, schedule, links, training } 
+    Database.COMPETITION_COLLECTION_NAME = "competitiondata"; // competition data { name, date, location, schedule, links, training } 
     Database.RANKINGS_COLLECTION_NAME = "rankingsdata"; // rankings data { type: "individual"/"team", event, data, id: 1/2/3/userid }
     Database.EVENTS_COLLECTION_NAME = "eventstorage"; // drive data { name, link, type }
     Database.PHOTOS_COLLECTION_NAME = "photostorage"; // drive data { name, photolink }

@@ -1,0 +1,15 @@
+if screen -list | grep -q "wso-app"; then
+    echo wso-app is running
+else
+    echo wso-app is not running
+fi
+if screen -list | grep -q "wso-mongodb"; then
+    echo wso-mongodb is running
+else
+    echo wso-mongodb is not running
+fi
+if screen -list | grep -q "wso-ts"; then
+    echo wso-ts is running
+else
+    echo wso-ts is not running
+fi

@@ -2,8 +2,8 @@
 /**
  * @author Dylan Nguyen (@dylann123)
  * Last Updated: 21 September 2024
- * Handles endpoint requests to /tournaments
- * Returns values from tournament database
+ * Handles endpoint requests to /competitions
+ * Returns values from competition database
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -50,10 +50,10 @@ var cookie_1 = __importDefault(require("../util/cookie"));
 var database_1 = __importDefault(require("../util/database"));
 var router = express_1.default.Router();
 router.use(cookie_1.default.parseCookiesRejectSession);
-var COLLECTION = database_1.default.TOURNAMENT_COLLECTION_NAME;
+var COLLECTION = database_1.default.COMPETITION_COLLECTION_NAME;
 router.get('/', function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var body, rawdata, _i, rawdata_1, tournament;
+        var body, rawdata, _i, rawdata_1, competition;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -62,10 +62,10 @@ router.get('/', function (req, res, next) {
                 case 1:
                     rawdata = _a.sent();
                     for (_i = 0, rawdata_1 = rawdata; _i < rawdata_1.length; _i++) {
-                        tournament = rawdata_1[_i];
-                        body[tournament["id"]] = {
-                            "name": tournament["name"],
-                            "date": tournament["date"] // UNIX timestamp
+                        competition = rawdata_1[_i];
+                        body[competition["id"]] = {
+                            "name": competition["name"],
+                            "date": competition["date"] // UNIX timestamp
                         };
                     }
                     res.send({ code: 200, result: body });
@@ -76,7 +76,7 @@ router.get('/', function (req, res, next) {
 });
 router.get('/:id', function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var id, tournament;
+        var id, competition;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -85,12 +85,12 @@ router.get('/:id', function (req, res, next) {
                     id = req.params.id;
                     return [4 /*yield*/, database_1.default.queryItemsInCollection(COLLECTION, { id: id })];
                 case 1:
-                    tournament = _a.sent();
-                    if (tournament["length"] == 0) {
-                        res.status(404).send({ code: 404, result: "Tournament not found." });
+                    competition = _a.sent();
+                    if (competition["length"] == 0) {
+                        res.status(404).send({ code: 404, result: "competition not found." });
                         return [2 /*return*/];
                     }
-                    res.status(200).send({ code: 200, result: tournament[0] });
+                    res.status(200).send({ code: 200, result: competition[0] });
                     return [2 /*return*/];
             }
         });
@@ -98,7 +98,7 @@ router.get('/:id', function (req, res, next) {
 });
 router.post('/add', function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var body, params, _i, params_1, param, duplicates, tournament, param, result;
+        var body, params, _i, params_1, param, duplicates, competition, param, result;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -158,10 +158,10 @@ router.post('/add', function (req, res, next) {
                 case 1:
                     duplicates = _a.sent();
                     if (duplicates["length"] > 0) {
-                        res.status(400).send({ code: 400, result: "Tournament '" + body["name"] + "' already exists." });
+                        res.status(400).send({ code: 400, result: "competition '" + body["name"] + "' already exists." });
                         return [2 /*return*/];
                     }
-                    tournament = {
+                    competition = {
                         "name": body["name"],
                         "date": body["date"],
                         "locations": body["locations"],
@@ -173,43 +173,43 @@ router.post('/add', function (req, res, next) {
                     for (param in params) {
                         switch (param) {
                             case "name":
-                                if (typeof tournament[param] != "string") {
+                                if (typeof competition[param] != "string") {
                                     res.status(400).send({ code: 400, result: "Parameter ".concat(param, " must be a string") });
                                     return [2 /*return*/];
                                 }
                                 break;
                             case "date":
-                                if (typeof tournament[param] != "number") {
+                                if (typeof competition[param] != "number") {
                                     res.status(400).send({ code: 400, result: "Parameter ".concat(param, " must be a unix timestamp") });
                                     return [2 /*return*/];
                                 }
                                 break;
                             case "locations":
-                                if (!Array.isArray(tournament[param])) {
+                                if (!Array.isArray(competition[param])) {
                                     res.status(400).send({ code: 400, result: "Parameter ".concat(param, " must be an array") });
                                     return [2 /*return*/];
                                 }
                                 break;
                             case "links":
-                                if (!Array.isArray(tournament[param])) {
+                                if (!Array.isArray(competition[param])) {
                                     res.status(400).send({ code: 400, result: "Parameter ".concat(param, " must be an array") });
                                     return [2 /*return*/];
                                 }
                                 break;
                             case "time_slots":
-                                if (!Array.isArray(tournament[param])) {
+                                if (!Array.isArray(competition[param])) {
                                     res.status(400).send({ code: 400, result: "Parameter ".concat(param, " must be an array of objects formatted as [{start: starttimeunix, stop: stoptimeunix}, ...]") });
                                     return [2 /*return*/];
                                 }
                                 break;
                             case "season":
-                                if (isNaN(tournament[param])) {
+                                if (isNaN(competition[param])) {
                                     res.status(400).send({ code: 400, result: "Parameter ".concat(param, " must be a number") });
                                     return [2 /*return*/];
                                 }
                         }
                     }
-                    return [4 /*yield*/, database_1.default.writeToCollection(COLLECTION, tournament)];
+                    return [4 /*yield*/, database_1.default.writeToCollection(COLLECTION, competition)];
                 case 2:
                     result = _a.sent();
                     res.status(200).send({ code: 200, result: result });
@@ -220,7 +220,7 @@ router.post('/add', function (req, res, next) {
 });
 router.post('/update', function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var body, tournament;
+        var body, competition;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -233,18 +233,18 @@ router.post('/update', function (req, res, next) {
                         res.status(400).send({ code: 400, result: "Missing parameter id." });
                         return [2 /*return*/];
                     }
-                    tournament = {};
+                    competition = {};
                     if (body["name"])
-                        tournament["name"] = body["name"];
+                        competition["name"] = body["name"];
                     if (body["date"])
-                        tournament["date"] = body["date"];
+                        competition["date"] = body["date"];
                     if (body["locations"])
-                        tournament["locations"] = body["locations"];
+                        competition["locations"] = body["locations"];
                     if (body["links"])
-                        tournament["links"] = body["links"];
+                        competition["links"] = body["links"];
                     if (body["time_slots"])
-                        tournament["time_slots"] = body["time_slots"];
-                    return [4 /*yield*/, database_1.default.modifyItemInCollection(COLLECTION, { id: body["id"] }, tournament).catch(function (err) {
+                        competition["time_slots"] = body["time_slots"];
+                    return [4 /*yield*/, database_1.default.modifyItemInCollection(COLLECTION, { id: body["id"] }, competition).catch(function (err) {
                             res.status(400).send({ code: 400, result: err });
                             return;
                         }).then(function (result) {

@@ -41,6 +41,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var session_1 = __importDefault(require("./session"));
 var database_1 = __importDefault(require("./database"));
+var logger_1 = __importDefault(require("./logger"));
+var dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config({ path: __dirname + '/../../.env' });
+logger_1.default.log(process.env);
 function parseCookies(req, res, next) {
     // https://stackoverflow.com/questions/44816519/how-to-get-cookie-value-in-expressjs
     var cookie = req.headers.cookie;
@@ -61,12 +65,13 @@ function parseCookies(req, res, next) {
 }
 function parseCookiesRejectSession(req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var cookie, values, cookies, _i, values_2, cookie_2, key, value, sessionExistsCookie, _a, sessionExistsBody, _b, sessionExistsQuery, _c, userdata;
-        return __generator(this, function (_d) {
-            switch (_d.label) {
+        var cookie, values, cookies, _i, values_2, cookie_2, key, value, sessionExistsCookie, _a, userdata;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
                 case 0:
                     cookie = req.headers.cookie;
-                    if (!cookie) return [3 /*break*/, 12];
+                    logger_1.default.log(req.headers);
+                    if (!cookie) return [3 /*break*/, 6];
                     values = cookie.split(';');
                     cookies = {};
                     for (_i = 0, values_2 = values; _i < values_2.length; _i++) {
@@ -77,52 +82,36 @@ function parseCookiesRejectSession(req, res, next) {
                     }
                     res.locals.validated = false;
                     res.locals.administrator = false;
-                    if (!(cookies[session_1.default.COOKIE_NAME])) return [3 /*break*/, 2];
-                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: cookies[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
+                    if (!(cookies[session_1.default.SECRET_COOKIE_NAME])) return [3 /*break*/, 2];
+                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: cookies[session_1.default.SECRET_COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
                 case 1:
-                    _a = (_d.sent());
+                    _a = (_b.sent());
                     return [3 /*break*/, 3];
                 case 2:
                     _a = { verified: false, result: {} };
-                    _d.label = 3;
+                    _b.label = 3;
                 case 3:
                     sessionExistsCookie = _a;
-                    if (!(req.body[session_1.default.COOKIE_NAME])) return [3 /*break*/, 5];
-                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: req.body[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
-                case 4:
-                    _b = (_d.sent());
-                    return [3 /*break*/, 6];
-                case 5:
-                    _b = { verified: false, result: {} };
-                    _d.label = 6;
-                case 6:
-                    sessionExistsBody = _b;
-                    if (!(req.query[session_1.default.COOKIE_NAME])) return [3 /*break*/, 8];
-                    return [4 /*yield*/, session_1.default.verifyUserSession({ secret: req.query[session_1.default.COOKIE_NAME] }).catch(function (err) { res.locals.validated = false; })];
-                case 7:
-                    _c = (_d.sent());
-                    return [3 /*break*/, 9];
-                case 8:
-                    _c = { verified: false, result: {} }; // unsafe
-                    _d.label = 9;
-                case 9:
-                    sessionExistsQuery = _c;
-                    if (!(cookies[session_1.default.COOKIE_NAME] && (sessionExistsCookie["verified"] || sessionExistsBody["verified"] || sessionExistsQuery["verified"]))) return [3 /*break*/, 11];
+                    if (!(cookies[session_1.default.SECRET_COOKIE_NAME] && (sessionExistsCookie["verified"]))) return [3 /*break*/, 5];
                     res.locals.validated = true;
-                    res.locals.username = sessionExistsCookie["result"]["username"] || sessionExistsBody["result"]["username"] || sessionExistsQuery["result"]["username"];
-                    return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USERDATA_COLLECTION_NAME, { username: res.locals.username })];
-                case 10:
-                    userdata = _d.sent();
-                    res.locals.userdata = userdata[0]; // it is assumed that there is only one user with a given username, and that it actually exists
+                    res.locals.id = sessionExistsCookie["result"]["id"];
+                    res.setHeader("Set-Cookie", session_1.default.getUserCookieHeader(res.locals.id));
+                    return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USERDATA_COLLECTION_NAME, { id: res.locals.id })];
+                case 4:
+                    userdata = _b.sent();
+                    res.locals.userdata = userdata[0]; // it is assumed that there is only one user with a given id, and that it actually exists
                     res.locals.administrator = (res.locals.userdata.type == "officer" || res.locals.userdata.admin);
-                    _d.label = 11;
-                case 11:
+                    // allow cors for identified users
+                    res.setHeader("Access-Control-Allow-Origin", process.env.CLIENT_HOST);
+                    res.setHeader("Access-Control-Allow-Credentials", "true");
+                    _b.label = 5;
+                case 5:
                     res.locals.cookie = cookies;
-                    return [3 /*break*/, 13];
-                case 12:
+                    return [3 /*break*/, 7];
+                case 6:
                     res.locals.cookie = {};
-                    _d.label = 13;
-                case 13:
+                    _b.label = 7;
+                case 7:
                     next();
                     return [2 /*return*/];
             }

@@ -109,7 +109,7 @@ router.get('/:event', function (req, res, next) {
                 case 3:
                     _f.sent();
                     return [2 /*return*/];
-                case 4: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USER_COLLECTION_NAME, { username: res.locals.username })];
+                case 4: return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.USERDATA_COLLECTION_NAME, { id: res.locals.id })];
                 case 5:
                     users = (_f.sent());
                     user = users[0];
@@ -161,7 +161,7 @@ router.get('/:event', function (req, res, next) {
  */
 router.post('/:event', function (req, res, next) {
     return __awaiter(this, void 0, void 0, function () {
-        var event, link, type, yearString, data, item;
+        var event, link, type, season, data, item;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -170,6 +170,7 @@ router.post('/:event', function (req, res, next) {
                     event = req.params.event;
                     link = req.body.link;
                     type = req.body.type;
+                    season = req.body.season;
                     if (event == undefined || link == undefined || type == undefined) {
                         res.status(400).send({ code: 400, result: "Missing event, link, or type" });
                         return [2 /*return*/];
@@ -178,12 +179,7 @@ router.post('/:event', function (req, res, next) {
                         res.status(400).send({ code: 400, result: "Invalid type" });
                         return [2 /*return*/];
                     }
-                    yearString = new Date().getFullYear().toString();
-                    if (new Date().getMonth() < 6)
-                        yearString = (new Date().getFullYear() - 1).toString() + "-" + yearString;
-                    else
-                        yearString = yearString + "-" + (new Date().getFullYear() + 1).toString();
-                    return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.EVENTS_COLLECTION_NAME, { event: event, year: yearString })];
+                    return [4 /*yield*/, database_1.default.queryItemsInCollection(database_1.default.EVENTS_COLLECTION_NAME, { event: event, season: season })];
                 case 1:
                     data = _a.sent();
                     if (data.length == 0) {

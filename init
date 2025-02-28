@@ -1,0 +1,2 @@
+npm install express path dotenv mongodb cors cookie-parser typescript
+npx tsc

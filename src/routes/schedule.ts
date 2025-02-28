@@ -6,8 +6,18 @@
 import express from "express"
 const router = express.Router();
 
-router.get('/', function(req, res, next) {
-	res.status(404).send({ error: "404 Not Found"});
+router.get("/getschedule", (req, res) => {
+	let query = req.query;
+	let date = query.date;
+	if(date) {
+		
+	}
+})
+
+router.get('/', function (req, res, next) {
+	let query = req.query;
+	let queryTypes = ["date", "starttime", "endtime", "location", "description", "event"];
+	res.status(404).send({ error: "404 Not Found" });
 });
- 
+
 export default router;
